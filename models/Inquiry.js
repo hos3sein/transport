@@ -251,6 +251,11 @@ const InquirySchema = new mongoose.Schema(
       default:0
     },
     
+    canceler : {
+      admin : {type : String },
+      number : {type : String},
+      cause : {type : String}
+    },
     requsterPaymnetInvoiceNumber:{
       type:String
     },

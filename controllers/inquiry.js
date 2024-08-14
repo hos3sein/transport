@@ -250,7 +250,7 @@ exports.offerPrice=asyncHandler(async (req, res, next) => {
     pictureProfile:find.requester.pictureProfile,
   };
  
-  pushNotificationStatic(recipient._id,1)
+  pushNotificationStatic(recipient._id , 1)
 
   // refresh global vase hame transport ha
   // ! globalTransport
@@ -318,6 +318,7 @@ exports.offerPriceNew = asyncHandler(async (req, res, next) => { //!
     //   "commerceStack",
     //   "Order"
     // );
+    pushNotificationStatic(recipient._id , 1)
     await refreshGT();
     await refreshGC();
 
@@ -439,6 +440,7 @@ exports.offerPriceNew = asyncHandler(async (req, res, next) => { //!
     //   "commerceStack",
     //   "Order"
     // );
+    pushNotificationStatic(recipient._id , 1)
     await refreshGT();
     await refreshGC();
 
@@ -668,18 +670,56 @@ exports.deleteInqury = asyncHandler(async (req, res, next) => {
     data: {},
   });
 });
+
 exports.cancel = asyncHandler(async (req, res, next) => {
   const inquery=await Inquiry.findByIdAndUpdate(req.params.id,{
     cancel:true,
   })
-   
-  await pushNotificationStatic(inquery.requester._id,6)
-
+  
+  await pushNotificationStatic(inquery.requester._id , 6)
+  await refreshGT();
+  await refreshGC();
   res.status(200).json({
     success: true,
     data: {},
   });
 });
+
+
+
+
+exports.Admincancel = asyncHandler(async (req, res, next) => {
+  const isAdmin = req.user.group.includes("admin");
+  const isSuperAdmin = req.user.group.includes("superAdmin");
+  if (!isAdmin && !isSuperAdmin) {
+    return next(new ErrorResponse("you dont have access to this route ", 401));
+  }
+  
+//   console.log('enter for cancel by admin...' , req.user)
+  console.log('body' , req.body)
+  const Admin = req.user
+  
+  const canceler = {
+    admin : req.user.username,
+    number : req.user.phoneNumber,
+    cause : req.body.cause
+  }
+
+  const inquery=await Inquiry.findByIdAndUpdate(req.params.id , {
+    cancel:true, canceler : canceler , end : true
+  })
+   console.log('cancelation succeed>>>>>>' , inquery)
+  await pushNotificationStatic( inquery.requester._id , 10)
+  await refreshGT();
+  await refreshGC();
+  res.status(200).json({
+    success: true,
+    data: {},
+  });
+});
+
+
+
 exports.changeStatusAdmin = asyncHandler(async (req, res, next) => {
   const user = req.user;
   const isAdmin = user.group.includes("admin");
@@ -706,7 +746,7 @@ exports.changeStatusAdmin = asyncHandler(async (req, res, next) => {
       at: Date.now(),
     };
   }
-
+  console.log('newStatus' , newStatus)
   await Inquiry.findByIdAndUpdate(  
     req.params.id,
     {
@@ -729,26 +769,29 @@ exports.changeStatusAdmin = asyncHandler(async (req, res, next) => {
     if(!transportPaymnet.success||!transportPaymnetComi.success){
       return next(new ErrorResponse("wallet section error",500))
     }
+    console.log('1111')
    const transportPaymnetApp=await walletUpdaterApp(0,order.transport.userId,transportAmount,`Transport all money for shiping order ${order.productName}`)
    const transportPaymnetComiApp=await walletUpdaterApp(1,order.transport.userId,appComi,`App comision for shiping order ${order.productName}`)
     if(!transportPaymnetApp.success||!transportPaymnetComiApp.success){
       return next(new ErrorResponse("wallet section error",500))
     }
+    console.log('22222')
     const transportPaymnetDeposite=await walletUpdater(1,order.transport.userId,depositeAmount,`Get back  deposite for shiping order ${order.productName}`)
     const transportPaymnetComiAppDeposite=await walletUpdaterApp(0,order.transport.userId,depositeAmount,`Get back  deposite for shiping order${order.productName}`)
     if(!transportPaymnetDeposite.success||!transportPaymnetComiAppDeposite.success){
       return next(new ErrorResponse("wallet section error",500))
     }
-    
+    console.log('33333')
     await Inquiry.findByIdAndUpdate(req.params.id,{
       end:true,
-      requsterPaymnetInvoiceNumber:appPaymet.data,
+      requsterPaymnetInvoiceNumber:transportPaymnetApp.data,
       transportPaymnetInvoiceNumber:transportPaymnet.data
     });
-    
+    console.log('4444')
     await refresinq(order)
     await pushNotificationStatic(order.requester._id,5)
   }
+  console.log('5555')
   if(newStatus==5&&type==1){
     const transportPaymnetDeposite=await walletUpdater(0,order.transport.userId,depositeAmount,`Deposite shiping order ${order.productName}`)
     const transportPaymnetComiAppDeposite=await walletUpdaterApp(1,order.transport.userId,depositeAmount,`Deposite shiping order ${order.productName}`)
@@ -866,7 +909,7 @@ exports.approveOfferNew = asyncHandler(async (req, res, next) => {
         pictureProfile:item.profileCompany,
       }
 
-     await pushNotificationStatic(reciver._id,3)
+     await pushNotificationStatic(reciver._id , 3)
     }
       })
    const recipient = {
@@ -876,7 +919,7 @@ exports.approveOfferNew = asyncHandler(async (req, res, next) => {
     };
   
   // console.log(result.requester._id);
-  await pushNotificationStatic(recipient._id,2)
+  await pushNotificationStatic(recipient._id , 2)
   await refreshGT()
   await SingleCommerceT(result.requester._id)
 
@@ -901,6 +944,7 @@ exports.msg = asyncHandler(async (req, res, next) => {
     pictureProfile: req.user.pictureProfile,
     at: Date.now(),
   };
+  
   const updateOrder = await Inquiry.findByIdAndUpdate(req.params.id, {
     $addToSet: { message },
   });
@@ -957,17 +1001,20 @@ exports.msg = asyncHandler(async (req, res, next) => {
   //   "Transportstack"
   // );
 
-  console.log("updateOrder.transport.userId",updateOrder.transport.userId);
-  console.log("updateOrder.requester._id",updateOrder.requester._id);
-
+  console.log("updateOrder.transport.userId" , updateOrder.transport.userId);
+  console.log("updateOrder.requester._id" , updateOrder.requester._id);
+  const messager = (req.user._id == updateOrder.transport.userId) ? updateOrder.requester._id : updateOrder.transport.userId;
+  pushNotificationStatic( messager , 11)
   await refreshchat(updateOrder.transport.userId,updateOrder.requester._id)
   // await refreshGC();
-
+ 
   res.status(200).json({
     success: true,
     data: {},
   });
 });
+
+
 exports.changeStatus = asyncHandler(async (req, res, next) => {
   const order = await Inquiry.findById(req.params.id);
   const newStatus = order.status + 1;
@@ -1025,12 +1072,12 @@ exports.changeStatus = asyncHandler(async (req, res, next) => {
     
     await Inquiry.findByIdAndUpdate(req.params.id,{
       end:true,
-      requsterPaymnetInvoiceNumber:appPaymet.data,
+      requsterPaymnetInvoiceNumber:transportPaymnetApp.data,
       transportPaymnetInvoiceNumber:transportPaymnet.data
     });
     
     await refresinq(order)
-    await pushNotificationStatic(order.requester._id,5)
+    await pushNotificationStatic(order.requester._id , 5)
   }
   
   await refresinq(order)
@@ -1040,13 +1087,13 @@ exports.changeStatus = asyncHandler(async (req, res, next) => {
     if(!transportPaymnetDeposite.success||!transportPaymnetComiAppDeposite.success){
       return next(new ErrorResponse("wallet section error",500))
     }
-    await pushNotificationStatic(order.requester._id,4)
+    await pushNotificationStatic(order.requester._id , 4)
   }
   if(newStatus==6){
-    await pushNotificationStatic(order.requester._id,7)
+    await pushNotificationStatic(order.requester._id , 7)
   }
   if(newStatus==7){
-    await pushNotificationStatic(order.requester._id,8)
+    await pushNotificationStatic(order.requester._id , 8)
   }
   
   res.status(200).json({
@@ -1094,6 +1141,7 @@ exports.getAllInfoForTransport = asyncHandler(async (req, res, next) => {
      onGoing:accept.length
   });
 });
+
 exports.logestic= asyncHandler(async (req, res, next) => {
   const sender = {
     _id: req.user._id,

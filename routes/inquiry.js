@@ -56,4 +56,6 @@ router.get("/offerme", protect, C.offerMe);
 router.delete("/delteInqury/:id",protect,C.deleteInqury)
 router.get("/cancel/:id", protect, C.cancel);
 
+router.post("/adminCancel/:id", protect, C.Admincancel);
+
 module.exports = router;
