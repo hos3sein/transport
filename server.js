@@ -16,7 +16,7 @@ const cors = require("cors");
 const errorHandler = require("./middleware/error");
 const connectDB = require("./config/db");
 const { checkGroup } = require("./utils/checkGroup");
-
+const { checker } = require("./utils/checkFinishing");
 // Load env vars
 // dotenv.config({
 //   path: "./config/config.env",
@@ -33,6 +33,13 @@ dotenv.config({
 // Connect to database...
 connectDB();
 checkGroup();
+
+setInterval(() => {
+  checker()
+}, 60*1000);
+
+
+
 
 // Route files
 const commerce = require("./routes");
