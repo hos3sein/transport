@@ -13,7 +13,7 @@ const {
   pushNotification,
   notification,
   getAllVarible,
-  changeTransportStatusForCommerce,
+  changeTransportStatusForCommerce,newLog
 } = require("../utils/request");
 const { refresh, refreshGT, refreshGC,SingleCommerceT,refreshchat,refresinq} = require("../utils/refresh");
 const moment = require("moment");
@@ -712,12 +712,19 @@ exports.Admincancel = asyncHandler(async (req, res, next) => {
   await pushNotificationStatic( inquery.requester._id , 10)
   await refreshGT();
   await refreshGC();
+  const Log = {
+    admin : {username :req.user.username , phone : req.user.phone , adminRole : req.user?.adminRole ,group : req.user?.group ,group : req.user?.group , firstName : req.user?.firstName , lastName : req.user?.lastName},
+    section : "Order transport",
+    part : "Cancel Transport Order",
+    success : true,
+    description : `${req.user.username} successfully canceled Order ${inquery.productName}`,
+  }
+  await newLog(Log)
   res.status(200).json({
     success: true,
     data: {},
   });
 });
-
 
 
 exports.changeStatusAdmin = asyncHandler(async (req, res, next) => {
@@ -790,6 +797,14 @@ exports.changeStatusAdmin = asyncHandler(async (req, res, next) => {
     console.log('4444')
     await refresinq(order)
     await pushNotificationStatic(order.requester._id,5)
+    const Log = {
+      admin : {username :req.user.username , phone : req.user.phone , adminRole : req.user?.adminRole ,group : req.user?.group , firstName : req.user?.firstName , lastName : req.user?.lastName},
+      section : "Order transport",
+      part : "ChangeStatus",
+      success : true,
+      description : `${req.user.username} successfully change Order's ${order.productName}'s to "delivered the cargo to buyer"`,
+    }
+    await newLog(Log)
   }
   console.log('5555')
   if(newStatus==5&&type==1){
@@ -800,12 +815,36 @@ exports.changeStatusAdmin = asyncHandler(async (req, res, next) => {
       return next(new ErrorResponse("wallet section error",500))
     }
     await pushNotificationStatic(order.requester._id,4)
+    const Log = {
+      admin : {username :req.user.username , phone : req.user.phone , adminRole : req.user?.adminRole ,group : req.user?.group , firstName : req.user?.firstName , lastName : req.user?.lastName},
+      section : "Order transport",
+      part : "ChangeStatus",
+      success : true,
+      description : `${req.user.username} successfully change Order's ${order.productName}'s to "start nav to origin"`,
+    }
+    await newLog(Log)
   }
   if(newStatus==6){
     await pushNotificationStatic(order.requester._id,7)
+    const Log = {
+      admin : {username :req.user.username , phone : req.user.phone , adminRole : req.user?.adminRole ,group : req.user?.group , firstName : req.user?.firstName , lastName : req.user?.lastName},
+      section : "Order transport",
+      part : "ChangeStatus",
+      success : true,
+      description : `${req.user.username} successfully change Order's ${order.productName}'s to "pickup the cargo from origin" `,
+    }
+    await newLog(Log)
   }
   if(newStatus==7){
     await pushNotificationStatic(order.requester._id,8)
+    const Log = {
+      admin : {username :req.user.username , phone : req.user.phone , adminRole : req.user?.adminRole ,group : req.user?.group , firstName : req.user?.firstName , lastName : req.user?.lastName},
+      section : "Order transport",
+      part : "ChangeStatus",
+      success : true,
+      description : `${req.user.username} successfully change Order's ${order.productName}'s to "start nav to the destination" `,
+    }
+    await newLog(Log)
   } 
   await refresinq(order)
   res.status(200).json({
