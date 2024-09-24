@@ -13,7 +13,7 @@ const {
   pushNotification,
   notification,
   getAllVarible,
-  changeTransportStatusForCommerce,newLog
+  changeTransportStatusForCommerce,newLog,getUSER
 } = require("../utils/request");
 const { refresh, refreshGT, refreshGC,SingleCommerceT,refreshchat,refresinq} = require("../utils/refresh");
 const moment = require("moment");
@@ -33,7 +33,7 @@ exports.requiestInquiryPrice = asyncHandler(async (req, res, next) => {
   });
    
   
-  // console.log("check", check);
+   console.log("check", check);
 
   if (check.length!=0) {
     return next(new ErrorResponse("you Already requsted", 401));
@@ -47,14 +47,34 @@ exports.requiestInquiryPrice = asyncHandler(async (req, res, next) => {
   // return;
 
   const find = await findSales(saleId);
+  const validate1 = await getUSER(req.user._id)
+  if (!validate1.data.isActive){
+    return res.status(401).json({
+      success : false,
+      payload : {
+        error : 'the user is  not activate'
+      }
+    })
+  }
+  if (find.data.user._id){
+    const validate = await getUSER(find.data.user._id)
+    if (!validate.data.isActive){
+      return res.status(401).json({
+        success : false,
+        payload : {
+          error : 'the user is  not activate'
+        }
+      })
+    }
+  }
   console.log("nice");
   const allV= await getAllVarible()
   const comi=allV.getQuoteAmount
-  const transportPaymnet=await walletUpdater(0,req.user._id,comi,"Get quote cost")
+  const transportPaymnet=await walletUpdater(0,req.user._id,comi*100,`Get quote cost for order ${find?.productName}`)
     if(!transportPaymnet.success){
       return next(new ErrorResponse("wallet section error",500))
     }
-   const appPaymet=await walletUpdaterApp(1,req.user._id,comi,"Get quote cost")
+   const appPaymet=await walletUpdaterApp(0,req.user._id,comi*100,"Get quote cost")
     if(!appPaymet.success){
       return next(new ErrorResponse("wallet section error",500))
     }
@@ -219,7 +239,15 @@ exports.offerPrice=asyncHandler(async (req, res, next) => {
   // console.log("fiiiiiind", find);
   const findCompany = await Transport.findOne({ "user._id": req.user._id });
   // console.log("findCompany", findCompany);
-
+const tvalidate = await getUSER(findCompany.user._id)
+  if (!tvalidate.data.isActive){
+    return res.status(401).json({
+      success : false,
+      payload : {
+        error :"user is not active"
+      }
+    })
+  }
    const data = {
     userId: req.user._id,
     idCompany: findCompany._id,
@@ -276,6 +304,15 @@ exports.offerPriceNew = asyncHandler(async (req, res, next) => { //!
   }
   if (!user) {
     return next(new ErrorResponse("User not found", 404));
+  }
+   const tvalidate = await getUSER(req.user._id)
+  if (!tvalidate.data.isActive){
+    return res.status(401).json({
+      success : false,
+      payload : {
+        error :"user is not active"
+      }
+    })
   }
   if (find.bids.length == 0) {
     const bid = {
@@ -735,6 +772,39 @@ exports.changeStatusAdmin = asyncHandler(async (req, res, next) => {
     return next(new ErrorResponse("you dont have access to this route ", 401));
   }
   const order = await Inquiry.findById(req.params.id);
+  if (order.requester._id){
+    const validate = await getUSER(order.requester._id)
+    if (!validate.data.isActive){
+      return res.status(401).json({
+        success : false,
+        payload : {
+          error : 'user is not activate!'
+        }
+      })
+    }
+  }
+  if(order.responser._id){
+    const validate = await getUSER(order.responser._id)
+    if (!validate.data.isActive){
+      return res.status(401).json({
+        success : false,
+        payload : {
+          error : 'user is not activate!'
+        }
+      })
+    }
+  }
+  if (order.transport.userId){
+    const validate = await getUSER(order.transport.userId)
+    if (!validate.data.isActive){
+      return res.status(401).json({
+        success : false,
+        payload : {
+          error : 'user is not activate!'
+        }
+      })
+    }
+  }
   const type=req.params.type //! with money ==>1 ---- with outMoney ==>0
   const newStatus = order.status + 1;
   const last = order.statusTime[order.statusTime.length - 1];
@@ -777,14 +847,14 @@ exports.changeStatusAdmin = asyncHandler(async (req, res, next) => {
       return next(new ErrorResponse("wallet section error",500))
     }
     console.log('1111')
-   const transportPaymnetApp=await walletUpdaterApp(0,order.transport.userId,transportAmount,`Transport all money for shiping order ${order.productName}`)
-   const transportPaymnetComiApp=await walletUpdaterApp(1,order.transport.userId,appComi,`App comision for shiping order ${order.productName}`)
+   const transportPaymnetApp=await walletUpdaterApp(1,order.transport.userId,transportAmount,`Transport all money for shiping order ${order.productName}`)
+   const transportPaymnetComiApp=await walletUpdaterApp(0,order.transport.userId,appComi,`App comision for shiping order ${order.productName}`)
     if(!transportPaymnetApp.success||!transportPaymnetComiApp.success){
       return next(new ErrorResponse("wallet section error",500))
     }
     console.log('22222')
     const transportPaymnetDeposite=await walletUpdater(1,order.transport.userId,depositeAmount,`Get back  deposite for shiping order ${order.productName}`)
-    const transportPaymnetComiAppDeposite=await walletUpdaterApp(0,order.transport.userId,depositeAmount,`Get back  deposite for shiping order${order.productName}`)
+    const transportPaymnetComiAppDeposite=await walletUpdaterApp(1,order.transport.userId,depositeAmount,`Get back  deposite for shiping order${order.productName}`)
     if(!transportPaymnetDeposite.success||!transportPaymnetComiAppDeposite.success){
       return next(new ErrorResponse("wallet section error",500))
     }
@@ -809,7 +879,7 @@ exports.changeStatusAdmin = asyncHandler(async (req, res, next) => {
   console.log('5555')
   if(newStatus==5&&type==1){
     const transportPaymnetDeposite=await walletUpdater(0,order.transport.userId,depositeAmount,`Deposite shiping order ${order.productName}`)
-    const transportPaymnetComiAppDeposite=await walletUpdaterApp(1,order.transport.userId,depositeAmount,`Deposite shiping order ${order.productName}`)
+    const transportPaymnetComiAppDeposite=await walletUpdaterApp(0,order.transport.userId,depositeAmount,`Deposite shiping order ${order.productName}`)
     if(!transportPaymnetDeposite.success||!transportPaymnetComiAppDeposite.success){
       console.log("wallet section amount");
       return next(new ErrorResponse("wallet section error",500))
@@ -1056,6 +1126,39 @@ exports.msg = asyncHandler(async (req, res, next) => {
 
 exports.changeStatus = asyncHandler(async (req, res, next) => {
   const order = await Inquiry.findById(req.params.id);
+  if (order.requester._id){
+    const validate = await getUSER(order.requester._id)
+    if (!validate.data.isActive){
+      return res.status(401).json({
+        success : false,
+        payload : {
+          error : 'user is not activate!'
+        }
+      })
+    }
+  }
+  if(order.responser._id){
+    const validate = await getUSER(order.responser._id)
+    if (!validate.data.isActive){
+      return res.status(401).json({
+        success : false,
+        payload : {
+          error : 'user is not activate!'
+        }
+      })
+    }
+  }
+  if (order.transport.userId){
+    const validate = await getUSER(order.transport.userId)
+    if (!validate.data.isActive){
+      return res.status(401).json({
+        success : false,
+        payload : {
+          error : 'user is not activate!'
+        }
+      })
+    }
+  }
   const newStatus = order.status + 1;
   const respoonse=await changeTransportStatusForCommerce(newStatus, order.salse);
   const last = order.statusTime[order.statusTime.length - 1];
@@ -1098,13 +1201,13 @@ exports.changeStatus = asyncHandler(async (req, res, next) => {
     if(!transportPaymnet.success||!transportPaymnetComi.success){
       return next(new ErrorResponse("wallet section error",500))
     }
-   const transportPaymnetApp=await walletUpdaterApp(0,order.transport.userId,transportAmount,`Transport all money for shiping order ${order.productName}`)
-   const transportPaymnetComiApp=await walletUpdaterApp(1,order.transport.userId,appComi,`App comision for shiping order ${order.productName}`)
+   const transportPaymnetApp=await walletUpdaterApp(1,order.transport.userId,transportAmount,`Transport all money for shiping order ${order.productName}`)
+   const transportPaymnetComiApp=await walletUpdaterApp(0,order.transport.userId,appComi,`App comision for shiping order ${order.productName}`)
     if(!transportPaymnetApp.success||!transportPaymnetComiApp.success){
       return next(new ErrorResponse("wallet section error",500))
     }
     const transportPaymnetDeposite=await walletUpdater(1,order.transport.userId,depositeAmount,`Get back  deposite for shiping order ${order.productName}`)
-    const transportPaymnetComiAppDeposite=await walletUpdaterApp(0,order.transport.userId,depositeAmount,`Get back  deposite for shiping order${order.productName}`)
+    const transportPaymnetComiAppDeposite=await walletUpdaterApp(1,order.transport.userId,depositeAmount,`Get back  deposite for shiping order${order.productName}`)
     if(!transportPaymnetDeposite.success||!transportPaymnetComiAppDeposite.success){
       return next(new ErrorResponse("wallet section error",500))
     }
@@ -1122,7 +1225,7 @@ exports.changeStatus = asyncHandler(async (req, res, next) => {
   await refresinq(order)
   if(newStatus==5){
     const transportPaymnetDeposite=await walletUpdater(0,order.transport.userId,depositeAmount,`Deposite shiping order ${order.productName}`)
-    const transportPaymnetComiAppDeposite=await walletUpdaterApp(1,order.transport.userId,depositeAmount,`Deposite shiping order ${order.productName}`)
+    const transportPaymnetComiAppDeposite=await walletUpdaterApp(0,order.transport.userId,depositeAmount,`Deposite shiping order ${order.productName}`)
     if(!transportPaymnetDeposite.success||!transportPaymnetComiAppDeposite.success){
       return next(new ErrorResponse("wallet section error",500))
     }

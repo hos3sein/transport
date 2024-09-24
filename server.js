@@ -32,11 +32,11 @@ dotenv.config({
 
 // Connect to database...
 connectDB();
-checkGroup();
+// checkGroup();
 
-setInterval(() => {
-  checker()
-}, 60*1000);
+// setInterval(() => {
+//   checker()
+// }, 60*1000);
 
 
 

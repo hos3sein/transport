@@ -30,5 +30,11 @@ router.post("/handelCancel",C.handelCancelAfterContractWithoutTransport)
 router.post("/cancelaftercontract",C.handelCancelAfterContractHaveTransport)
 
 
+router.get('/getAllOrders' , C.AllOrders)
+
+router.get('/cancelOrder/:id' , C.cancelOrder)
+
+
+
 
 module.exports = router;

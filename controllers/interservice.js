@@ -455,3 +455,28 @@ exports.handelCancelAfterContractWithoutTransport=asyncHandler(async (req, res, 
     success:true,
   })
 })
+
+
+
+exports.AllOrders = asyncHandler(async(req , res , next)=>{
+  const waiting = await Inquiry.find({$and:[{status : 0},{cancel : false}]})
+  return res.status(200).json({
+    success : true,
+    data : waiting
+  })
+})
+
+
+
+exports.cancelOrder = asyncHandler(async(req , res , next)=>{
+  await Inquiry.findByIdAndUpdate(req.params.id , {cancel : true}).then(async(resault)=>{
+                  console.log('the order time finished>>>>' , element.productName)
+                  await refreshGT()
+                  await refreshGC()
+              }).catch((err)=>{
+                  console.log('error occured while finishing the order >>>' , element.productName , err)
+              })
+              return res.status(200).json({
+                success : true,
+              })
+})
